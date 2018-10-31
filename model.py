@@ -34,9 +34,11 @@ class DownSample(nn.Module):
         self.main = nn.Sequential(
                         nn.Conv2d(in_channels, out_channels, 
                                     kernel_size=3, stride=1, padding=1),
+                        nn.BatchNorm2d(out_channels),
                         nn.ReLU(),
                         nn.Conv2d(out_channels, out_channels, 
                                     kernel_size=3, stride=1, padding=1),
+                        nn.BatchNorm2d(out_channels),
                         nn.ReLU())
         self.pool = nn.MaxPool2d(kernel_size=2, stride=2)
     def forward(self, x):
@@ -56,22 +58,25 @@ class UpSample(nn.Module):
     Params:
         - Cropped layer from previous
     """
-    def __init__(self, in_channels, out_channels, bilinear=False):
+    def __init__(self, in_channels, out_channels, bilinear=True):
         super(UpSample, self).__init__()
         self.main = nn.Sequential(
-                        nn.Conv2d(in_channels*2, out_channels, 
+                        nn.Conv2d(in_channels, out_channels, 
                             kernel_size=3,stride=1,padding=1),
+                        nn.BatchNorm2d(out_channels),
                         nn.ReLU(),
                         nn.Conv2d(out_channels, out_channels, 
                             kernel_size=3, stride=1,padding=1),
-                        nn.ReLU(),
-                        upsampling(out_channels, out_channels, 
+                        nn.BatchNorm2d(out_channels),
+                        nn.ReLU())
+        self.upsample =  upsampling(in_channels, in_channels, 
                             bilinear=bilinear)
-
-        )
         
-    def forward(self, x,y):
-        x = torch.cat((x, y), dim=1)
+    def forward(self, x, y):
+        x = self.upsample(x)
+        # print(f"upsamples x : {x.shape} and y has {y.shape}")
+        x = torch.cat([x, y], dim=1)
+        # print(f"concat x : {x.shape}")
         return self.main(x)
 
 
@@ -109,20 +114,23 @@ class Unet(nn.Module):
             else:
                 ins = outs
             # increase the number of filters as  2^depth
-            outs = self.nb_filters*(2**(i+1)) 
+            outs = self.nb_filters*(2**(i)) 
 
             # create downsampling block for this ins-->outs
             down_conv = DownSample(ins, outs)
 
             self.down_convs.append(down_conv)
         
+        # bottom 
+        self.bottom = nn.Conv2d(outs, outs, kernel_size=3,stride=1, padding=1, bias=False)
+
         # start with previous depth and create upconv blocks
         for i in range(depth):
             ins = outs 
             outs = ins // 2
 
             # using bilinear up convolutions
-            up_conv = UpSample(ins, outs, bilinear=True)
+            up_conv = UpSample(ins*2, outs, bilinear=True)
             self.up_convs.append(up_conv)
         
         #final layer
@@ -133,27 +141,29 @@ class Unet(nn.Module):
         self.up_convs = nn.ModuleList(self.up_convs)
 
     def forward(self, x):
-       # TODO: add forward pass
+        # TODO: add forward pass
+        downs = [] 
+        for down in self.down_convs:
+            x, unpooled_x = down(x)
+            print(f"downsampling with {x.shape}")
+            downs.append(unpooled_x)
 
-       # process downsampling 
+        x = self.bottom(x)
 
-       # process cropping of each intermediate downsampling layer 
+        for i,ups in enumerate(self.up_convs):
+            print(f"Upsampling with {x.shape} and {downs[-i-1].shape}")
+            x = ups(x,downs[-i-1])
+            
 
-       # append crops and process upsampling 
-       # return final layers 
-       
-       return  
+        x = self.out_conv(x)
+
+        return x   
         
 if __name__=='__main__':
     
-    x = Variable(torch.randn((1, 3, 320, 320)))
-    print("downsampling")
-    down_sample = DownSample(in_channels=3,out_channels=64)
-    out_pooled, out = down_sample(x)
-    print(out.shape, out_pooled.shape)
-    print("upsampling")
-    up_sample = UpSample(64, 3, bilinear=True)
-    out = up_sample(out_pooled, out_pooled)
-    print(out.shape, x.shape)
-
+    x = Variable(torch.randn((1, 3, 512, 512)))
+    model = Unet(depth=5,nb_classes=1)
+    print(model)
+    out = model(x)
+    print(f"input with {x.shape} and output with {out.shape}")
     
