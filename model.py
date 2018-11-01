@@ -73,8 +73,7 @@ class UpSample(nn.Module):
 
 
 class Unet(nn.Module):
-    """
-    Overall unet structure 
+    r"""Overall unet structure 
     Ex: for a depth of 1
     conv3x3 ->conv3x3-->crop_and_add-->conv3x3-->conv3x3-->conv1x1--> out
                  |                      / \
