@@ -15,9 +15,6 @@ def upsampling(in_channels, out_channels, bilinear=False):
                     kernel_size=2,
                     stride=2)
 
-
-
-
 class DownSample(nn.Module):
     """
     Downsampling block in the U-Net structure.
@@ -25,8 +22,6 @@ class DownSample(nn.Module):
         - Conv3x3 + relu
         - Conv3x3 + relu
         - maxpool2x2
-    
-
     """
     def __init__(self, in_channels=3, out_channels=64):
         super(DownSample, self).__init__()
@@ -44,9 +39,6 @@ class DownSample(nn.Module):
     def forward(self, x):
         x = self.main(x)
         return self.pool(x), x
-
-
-
 
 class UpSample(nn.Module):
     """
@@ -81,8 +73,7 @@ class UpSample(nn.Module):
 
 
 class Unet(nn.Module):
-    """
-    Overall unet structure 
+    r"""Overall unet structure 
     Ex: for a depth of 1
     conv3x3 ->conv3x3-->crop_and_add-->conv3x3-->conv3x3-->conv1x1--> out
                  |                      / \
@@ -141,7 +132,7 @@ class Unet(nn.Module):
         self.up_convs = nn.ModuleList(self.up_convs)
 
     def forward(self, x):
-        # TODO: add forward pass
+        # Forward pass 
         downs = [] 
         for down in self.down_convs:
             x, unpooled_x = down(x)
@@ -153,17 +144,13 @@ class Unet(nn.Module):
         for i,ups in enumerate(self.up_convs):
             print(f"Upsampling with {x.shape} and {downs[-i-1].shape}")
             x = ups(x,downs[-i-1])
-            
 
         x = self.out_conv(x)
-
         return x   
         
 if __name__=='__main__':
-    
     x = Variable(torch.randn((1, 3, 512, 512)))
-    model = Unet(depth=5,nb_classes=1)
+    model = Unet(depth=2,nb_classes=1)
     print(model)
     out = model(x)
     print(f"input with {x.shape} and output with {out.shape}")
-    
