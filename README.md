@@ -29,7 +29,9 @@ out = model(x)
 print(f"input with {x.shape} and output with {out.shape}")
 ```
 
+## Notebook 
 
+Complete function notebook is available at [Colab Noteboo](./segmentation_unet.ipynb). Launch it with gpu instance. 
 
 
 ## Dataset 
